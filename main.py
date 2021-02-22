@@ -1,4 +1,4 @@
-import os
+import os, sys
 import requests
 from html.parser import HTMLParser
 import random
@@ -8,13 +8,13 @@ class ZcsHtmlParser(HTMLParser):
     def __init__(self):
         super(ZcsHtmlParser, self).__init__()
 
-        self.article_box_start = False
+        self.article_url_start = False
         self.require_title = False
         self.article_urls = []
         self.article_titles = []
 
     def feed(self, data):
-        self.article_box_start = False
+        self.article_url_start = False
         self.require_title = False
         self.article_urls = []
         self.article_titles = []
@@ -22,22 +22,22 @@ class ZcsHtmlParser(HTMLParser):
         super().feed(data)
 
     def handle_starttag(self, tag, attrs):
-        # print(tag, attrs)
-        if tag == 'div' and len(attrs) > 0:
+        #print(tag, attrs)
+        if tag == 'article' and len(attrs) > 0:
             for key, val in attrs:
-                if key == 'class' and val == 'article-item-box csdn-tracking-statistics': #'article-list':
-                    self.article_box_start = True
+                if key == 'class':
+                    if val == 'blog-list-box': #'article-list':
+                        self.article_url_start = True
         
-        if tag == 'a' and self.article_box_start is True:
-            self.article_box_start = False
+        if tag == 'a' and self.article_url_start is True:
+            self.article_url_start = False
             self.require_title = True
             for key, val in attrs:
                 if key == 'href':
                     self.article_urls.append(val)
-                    # print(val)
     
     def handle_endtag(self, tag):
-        if tag == 'a' and self.require_title is True:
+        if tag == 'h4' and self.require_title is True:
             self.require_title = False
             # print('[%s]' % self.data.replace(' ', '').replace('\n', ''))
             self.article_titles.append(self.data.replace(' ', '').replace('\n', ''))
@@ -80,18 +80,21 @@ def get_user_agent():
     return user_agent
     # return user_agents[0]
 
-def get_blog_titles_and_urls(root_url='https://blog.csdn.net/weixin_39228381'):
+def get_blog_titles_and_urls(root_url='https://blog.csdn.net/weixin_39228381?type=blog'):
     user_agent = get_user_agent()
     response = requests.get(root_url, headers={'user-agent':user_agent})
     text = response.content.decode('utf-8')
-    # print(text)
+
+    #with open('./articles.txt', 'w') as fp:
+    #    fp.write(text)
+
     # cookies = response.cookies
     # print(cookies)
     # cookies = requests.utils.dict_from_cookiejar(cookies)
     # print(cookies)
 
-    # with open('./articles.txt', 'r') as fp:
-    #     text = fp.read()
+    #with open('./articles.txt', 'r') as fp:
+    #    text = fp.read()
     # print(text)
 
     zhp = ZcsHtmlParser()
@@ -121,6 +124,7 @@ def save_pdf(htmls, file_name):
 
 if __name__ == '__main__':
     zhp = get_blog_titles_and_urls()
+    #sys.exit()
     user_agent = get_user_agent()
     for title, url in zip(zhp.article_titles, zhp.article_urls):
         print(title, url)
